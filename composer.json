@@ -1,0 +1,46 @@
+{
+    "name": "cable8mm/image-proxy",
+    "description": "Standalone Image Proxy combine Apache Cache + Google pagespeed module",
+    "keywords": [
+        "image-proxy",
+        "php",
+        "apache-cache",
+        "google-pagespeed"
+    ],
+    "type": "project",
+    "require": {
+        "php": ">=7.2",
+        "ext-gmagick": "^2.0.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sam Lee",
+            "email": "cable8mm@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "autoload": {
+        "classmap": [
+            "src/"
+        ],
+        "psr-4": {
+            "Cable8mm\\ImageProxy\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cable8mm\\ImageProxy\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "test": [
+            "./vendor/bin/phpunit tests"
+        ]
+    }
+}
