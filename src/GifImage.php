@@ -5,39 +5,69 @@ namespace Cable8mm\ImageProxy;
 class GifImage
 {
     private $gif;
+
     private $gif_header;
+
     private $g_palette;
+
     private $g_mod;
+
     private $g_mode;
+
     private $img_effect;
 
     private $ptr = 0;
+
     private $max_len = 0;
+
     private $int_w = 0;
+
     private $int_h = 0;
+
     private $new_width = 0;
+
     private $new_height = 0;
+
     private $s_x = 0;
+
     private $s_y = 0;
+
     private $crop_width = 0;
+
     private $crop_height = 0;
+
     private $crop = false;
+
     private $fit = false;
+
     private $resize_ratio = [0, 0];
+
     private $frame_count = 0;
+
     private $au = 0;
+
     private $nt = 0;
 
     private $frame_array = [];
+
     private $image_data = null;
+
     private $gn_fld = [];
+
     private $dl_frmf = [];
+
     private $dl_frms = [];
+
     private $pre_process_actions = [];
+
     private $post_process_actions = [];
+
     private $processed = [];
+
     private $upscale_max_pixels = 1000;
+
     private $zoom_enabled = true;
+
     private $send_etag_header = true;
 
     private static $pre_actions = ['set_height', 'set_width', 'crop', 'crop_offset', 'resize_and_crop', 'fit_in_box'];
@@ -45,12 +75,17 @@ class GifImage
     public const optimize = true;
 
     public const GIF_BLOCK_IMAGE_DESCRIPTOR = 0x2C;
+
     public const GIF_BLOCK_EXTENSION = 0x21;
+
     public const GIF_BLOCK_END = 0x3B;
 
     public const GIF_EXT_PLAINTEXT = 0x01;
+
     public const GIF_EXT_GRAPHIC_CONTROL = 0xF9;
+
     public const GIF_EXT_COMMENT = 0xFE;
+
     public const GIF_EXT_APPLICATION = 0xFF;
 
     public function __construct($gif_data)
@@ -66,7 +101,7 @@ class GifImage
         $this->parse_frames();
 
         $buffer_add = '';
-        while (self::GIF_BLOCK_END != ord($this->gif[$this->ptr])) {
+        while (ord($this->gif[$this->ptr]) != self::GIF_BLOCK_END) {
             if ($this->ptr >= $this->max_len) {
                 $this->error_and_die('400 Bad Request', 'unable to process the image data');
             }
@@ -77,7 +112,7 @@ class GifImage
                         $sum += $lc_i + 1;
                     }
                     self::optimize ? $this->get_bytes($sum + 1) : $buffer_add .= $this->get_bytes($sum + 1);
-                    if (17 == $sum) {
+                    if ($sum == 17) {
                         $this->au = 1;
                     }
                     break;
@@ -106,17 +141,17 @@ class GifImage
 
     private function parse_header()
     {
-        $this->int_w = $this->bytes_to_num($this->gif_header[6] . $this->gif_header[7]);
-        $this->int_h = $this->bytes_to_num($this->gif_header[8] . $this->gif_header[9]);
+        $this->int_w = $this->bytes_to_num($this->gif_header[6].$this->gif_header[7]);
+        $this->int_h = $this->bytes_to_num($this->gif_header[8].$this->gif_header[9]);
 
         if (($vt = ord($this->gif_header[10])) & 128 ? 1 : 0) {
             $this->g_palette = $this->get_bytes(pow(2, ($vt & 7) + 1) * 3);
         }
 
         $buff = '';
-        if (self::GIF_BLOCK_EXTENSION == ord($this->gif[$this->ptr])) {
-            while (self::GIF_EXT_GRAPHIC_CONTROL != ord($this->gif[$this->ptr + 1]) &&
-                    self::GIF_BLOCK_IMAGE_DESCRIPTOR != ord($this->gif[$this->ptr])) {
+        if (ord($this->gif[$this->ptr]) == self::GIF_BLOCK_EXTENSION) {
+            while (ord($this->gif[$this->ptr + 1]) != self::GIF_EXT_GRAPHIC_CONTROL &&
+                    ord($this->gif[$this->ptr]) != self::GIF_BLOCK_IMAGE_DESCRIPTOR) {
                 switch (ord($this->gif[$this->ptr + 1])) {
                     case self::GIF_EXT_COMMENT:
                         $sum = 2;
@@ -154,13 +189,14 @@ class GifImage
     private function parse_frames()
     {
         $buffer = '';
-        while (self::GIF_BLOCK_END != ord($this->gif[$this->ptr])) {
+        while (ord($this->gif[$this->ptr]) != self::GIF_BLOCK_END) {
             $gr_mod = '';
             $this->frame_count++;
 
-            while (self::GIF_BLOCK_IMAGE_DESCRIPTOR != ord($this->gif[$this->ptr])) {
-                if (self::GIF_BLOCK_END == ord($this->gif[$this->ptr])) {
+            while (ord($this->gif[$this->ptr]) != self::GIF_BLOCK_IMAGE_DESCRIPTOR) {
+                if (ord($this->gif[$this->ptr]) == self::GIF_BLOCK_END) {
                     $this->frame_count--;
+
                     continue 2;
                 }
                 if ($this->ptr >= $this->max_len) {
@@ -185,8 +221,8 @@ class GifImage
                         while (0x00 != ($lc_i = ord($this->gif[$this->ptr + $sum]))) {
                             $sum += $lc_i + 1;
                         }
-                        if ('NETSCAPE' == substr($tmp_buf = $this->get_bytes($sum + 1), 3, 8)) {
-                            if (!$this->nt) {
+                        if (substr($tmp_buf = $this->get_bytes($sum + 1), 3, 8) == 'NETSCAPE') {
+                            if (! $this->nt) {
                                 $this->nt = 1;
                                 $this->g_mod .= $tmp_buf;
                             }
@@ -249,14 +285,15 @@ class GifImage
 
     private function get_frame_image($index)
     {
-        return $this->gif_header . $this->g_palette . $this->g_mod . $this->frame_array[$index]->lc_mod .
-                $this->frame_array[$index]->head . $this->frame_array[$index]->palette . $this->frame_array[$index]->image . "\x3B";
+        return $this->gif_header.$this->g_palette.$this->g_mod.$this->frame_array[$index]->lc_mod.
+                $this->frame_array[$index]->head.$this->frame_array[$index]->palette.$this->frame_array[$index]->image."\x3B";
     }
 
     private function get_bytes($num_bytes)
     {
         $bytes = substr($this->gif, $this->ptr, $num_bytes);
         $this->ptr += $num_bytes;
+
         return $bytes;
     }
 
@@ -264,6 +301,7 @@ class GifImage
     {
         $retval = ord($bytes[1]) << 8;
         $retval = $retval | ord($bytes[0]);
+
         return $retval;
     }
 
@@ -274,7 +312,7 @@ class GifImage
 
     private function int_raw($int)
     {
-        return chr($int & 255) . chr(($int & 0xFF00) >> 8);
+        return chr($int & 255).chr(($int & 0xFF00) >> 8);
     }
 
     private function error_and_die($result = '400 Bad Request', $message = '')
@@ -283,7 +321,7 @@ class GifImage
             httpdie($result, $message);
         } else {
             header("HTTP/1.1 $result");
-            die($message);
+            exit($message);
         }
     }
 
@@ -291,7 +329,7 @@ class GifImage
     {
         $str_img = @imagecreatefromstring($img_data);
 
-        if (1 == $this->frame_count) {
+        if ($this->frame_count == 1) {
             $img_s = @imagecreatetruecolor($this->int_w, $this->int_h);
         } else {
             $img_s = @imagecreate($this->int_w, $this->int_h);
@@ -304,7 +342,7 @@ class GifImage
                 $tr_clr = @imagecolorsforindex($str_img, $in_trans);
             }
 
-            if (1 == $this->frame_count || !isset($tr_clr)) {
+            if ($this->frame_count == 1 || ! isset($tr_clr)) {
                 $n_trans = @imagecolorallocatealpha($img_s, 255, 255, 255, 127);
             } else {
                 if (array_key_exists('alpha', $tr_clr)) {
@@ -338,7 +376,7 @@ class GifImage
         // Set the new object top-left co-ord to be the new main image's top-left
         $this->frame_array[$index]->pos_x = 0;
         $this->frame_array[$index]->pos_y = 0;
-        $this->frame_array[$index]->off_xy = $this->int_raw(0) . $this->int_raw(0);
+        $this->frame_array[$index]->off_xy = $this->int_raw(0).$this->int_raw(0);
         // Set the new width and height to full image size
         $this->frame_array[$index]->width = $this->int_w;
         $this->frame_array[$index]->height = $this->int_h;
@@ -396,26 +434,26 @@ class GifImage
             $s_height = $this->frame_array[$index]->height;
         }
 
-        if (0 >= $n_width) {
+        if ($n_width <= 0) {
             $n_width = 1;
         }
-        if (0 >= $n_height) {
+        if ($n_height <= 0) {
             $n_height = 1;
         }
-        if (0 >= $s_width) {
+        if ($s_width <= 0) {
             $s_width = 1;
         }
-        if (0 >= $s_height) {
+        if ($s_height <= 0) {
             $s_height = 1;
         }
 
         $n_pos_x = round($this->frame_array[$index]->pos_x * $this->resize_ratios[0]);
         $n_pos_y = round($this->frame_array[$index]->pos_y * $this->resize_ratios[1]);
-        $this->frame_array[$index]->off_xy = $this->int_raw($n_pos_x) . $this->int_raw($n_pos_y);
+        $this->frame_array[$index]->off_xy = $this->int_raw($n_pos_x).$this->int_raw($n_pos_y);
 
         $str_img = @imagecreatefromstring($img_data);
 
-        if (1 == $this->frame_count) {
+        if ($this->frame_count == 1) {
             $img_s = @imagecreatetruecolor($n_width, $n_height);
         } else {
             $img_s = @imagecreate($n_width, $n_height);
@@ -428,7 +466,7 @@ class GifImage
                 $tr_clr = @imagecolorsforindex($str_img, $in_trans);
             }
 
-            if (1 == $this->frame_count || !isset($tr_clr)) {
+            if ($this->frame_count == 1 || ! isset($tr_clr)) {
                 $n_trans = @imagecolorallocatealpha($img_s, 255, 255, 255, 127);
             } else {
                 if (array_key_exists('alpha', $tr_clr)) {
@@ -470,8 +508,8 @@ class GifImage
         }
 
         $str_max_len = strlen($str_img);
-        while (self::GIF_BLOCK_IMAGE_DESCRIPTOR != ord($str_img[$offset])) {
-            if (self::GIF_EXT_GRAPHIC_CONTROL == ord($str_img[$offset + 1]) &&
+        while (ord($str_img[$offset]) != self::GIF_BLOCK_IMAGE_DESCRIPTOR) {
+            if (ord($str_img[$offset + 1]) == self::GIF_EXT_GRAPHIC_CONTROL &&
                 $this->frame_array[$index]->transp) {
                 $str_img[$offset + 3] = $this->gn_fld[$index];
                 $str_img[$offset + 4] = $this->dl_frmf[$index];
@@ -495,9 +533,9 @@ class GifImage
         $str_img[$offset + 9] = chr(ord($str_img[$offset + 9]) | 0x80 | (ord($str_img[10]) & 0x7));
 
         $ms1 = substr($str_img, $hd, $i_hd + 10);
-        $ms1 = $this->frame_array[$index]->gr_mod . $ms1;
+        $ms1 = $this->frame_array[$index]->gr_mod.$ms1;
 
-        return $ms1 . $palet . substr(substr($str_img, $offset + 10), 0, -1);
+        return $ms1.$palet.substr(substr($str_img, $offset + 10), 0, -1);
     }
 
     private function set_height($args, $upscale = false)
@@ -509,10 +547,11 @@ class GifImage
         }
 
         // new height is invalid or is greater than original image, but we don't have permission to upscale
-        if ((!$this->new_height) || ($this->new_height > $this->int_h && !$upscale)) {
+        if ((! $this->new_height) || ($this->new_height > $this->int_h && ! $upscale)) {
             // if the sizes are too big, then we serve the original size
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
         // sane limit when upscaling, defaults to 1000
@@ -520,6 +559,7 @@ class GifImage
             // if the sizes are too big, then we serve the original size
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
 
@@ -534,17 +574,18 @@ class GifImage
 
     private function set_width($args, $upscale = false)
     {
-        if ('%' == substr($args, -1)) {
+        if (substr($args, -1) == '%') {
             $this->new_width = round($this->int_w * abs(intval($args)) / 100);
         } else {
             $this->new_width = intval($args);
         }
 
         // New width is invalid or is greater than original image, but we don't have permission to upscale
-        if ((!$this->new_width) || ($this->new_width > $this->int_w && !$upscale)) {
+        if ((! $this->new_width) || ($this->new_width > $this->int_w && ! $upscale)) {
             // if the sizes are too big, then we serve the original size
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
 
@@ -553,6 +594,7 @@ class GifImage
             // if the sizes are too big, then we serve the original size
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
 
@@ -601,18 +643,19 @@ class GifImage
     private function fit_in_box($args)
     {
         // if the args are malformed, default to the original size
-        if (false === strpos($args, ',')) {
+        if (strpos($args, ',') === false) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
-        list($end_w, $end_h) = explode(',', $args);
+        [$end_w, $end_h] = explode(',', $args);
 
         $end_w = abs(intval($end_w));
         $end_h = abs(intval($end_h));
 
         // we do not allow both new width and height to be larger at the same time
-        if (!$end_w || !$end_h || ($this->int_w <= $end_w && $this->int_h <= $end_h)) {
+        if (! $end_w || ! $end_h || ($this->int_w <= $end_w && $this->int_h <= $end_h)) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
         } else {
@@ -643,9 +686,10 @@ class GifImage
     private function crop($args)
     {
         // if the args are malformed, default to the original size
-        if (false === strpos($args, ',')) {
+        if (strpos($args, ',') === false) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
         $args = explode(',', $args);
@@ -654,28 +698,29 @@ class GifImage
         if (count($args) != 4) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
 
-        if ('px' == substr($args[2], -2)) {
+        if (substr($args[2], -2) == 'px') {
             $this->crop_width = max(0, min($this->int_w, intval($args[2])));
         } else {
             $this->crop_width = round($this->int_w * abs(intval($args[2])) / 100);
         }
 
-        if ('px' == substr($args[3], -2)) {
+        if (substr($args[3], -2) == 'px') {
             $this->crop_height = max(0, min($this->int_h, intval($args[3])));
         } else {
             $this->crop_height = round($this->int_h * abs(intval($args[3])) / 100);
         }
 
-        if ('px' == substr($args[0], -2)) {
+        if (substr($args[0], -2) == 'px') {
             $this->s_x = intval($args[0]);
         } else {
             $this->s_x = round($this->int_w * abs(intval($args[0])) / 100);
         }
 
-        if ('px' == substr($args[1], -2)) {
+        if (substr($args[1], -2) == 'px') {
             $this->s_y = intval($args[1]);
         } else {
             $this->s_y = round($this->int_h * abs(intval($args[1])) / 100);
@@ -690,9 +735,10 @@ class GifImage
     private function crop_offset($args)
     {
         // if the args are malformed, default to the original size
-        if (false === strpos($args, ',')) {
+        if (strpos($args, ',') === false) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
         $args = explode(',', $args);
@@ -701,6 +747,7 @@ class GifImage
         if (count($args) != 4) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
 
@@ -718,20 +765,22 @@ class GifImage
     private function resize_and_crop($args)
     {
         // if the args are malformed, default to the original size
-        if (false === strpos($args, ',')) {
+        if (strpos($args, ',') === false) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
 
-        list($end_w, $end_h) = explode(',', $args);
+        [$end_w, $end_h] = explode(',', $args);
         $end_w = (int) $end_w;
         $end_h = (int) $end_h;
 
         // if the sizes are invalid, default to the original size
-        if (0 == $end_w || 0 == $end_h) {
+        if ($end_w == 0 || $end_h == 0) {
             $this->new_width = $this->int_w;
             $this->new_height = $this->int_h;
+
             return;
         }
 
@@ -750,10 +799,10 @@ class GifImage
                 $this->new_height = $end_h;
             }
 
-            if (!$this->new_width) {
+            if (! $this->new_width) {
                 $this->new_width = intval($this->new_height * $ratio_orig);
             }
-            if (!$this->new_height) {
+            if (! $this->new_height) {
                 $this->new_height = intval($this->new_width / $ratio_orig);
             }
 
@@ -762,6 +811,7 @@ class GifImage
                 ($this->new_height > $this->int_h && ($this->new_height > $this->upscale_max_pixels))) {
                 $this->new_width = $this->int_w;
                 $this->new_height = $this->int_h;
+
                 return;
             }
 
@@ -779,7 +829,7 @@ class GifImage
     public function process_image($new_w, $new_h, $crop, $s_x, $s_y, $crop_w, $crop_h)
     {
         // if the gif image has an invalid size for either value, do not process it
-        if (1 > $this->int_w || 1 > $this->int_h) {
+        if ($this->int_w < 1 || $this->int_h < 1) {
             return false;
         }
 
@@ -792,7 +842,7 @@ class GifImage
         $this->crop_height = $crop_h;
 
         // we fail if the image size is too small
-        if (1 > $this->new_width || 1 > $this->new_height) {
+        if ($this->new_width < 1 || $this->new_height < 1) {
             return false;
         }
 
@@ -820,12 +870,12 @@ class GifImage
         }
 
         // if the gif image has an invalid size for either value, do not process it
-        if (1 > $this->int_w || 1 > $this->int_h) {
+        if ($this->int_w < 1 || $this->int_h < 1) {
             return false;
         }
 
         // we need at least one action to perform otherwise we should just send the original
-        if (0 == count($this->pre_process_actions)) {
+        if (count($this->pre_process_actions) == 0) {
             $this->pre_process_actions[] = [
                 'func_name' => 'set_width',
                 'params' => $this->int_w,
@@ -836,18 +886,18 @@ class GifImage
         // do the pre-processing functions
         foreach ($this->pre_process_actions as $action) {
             $this->{$action['func_name']}($action['params']);
-            if ('crop' == $action['func_name'] || 'crop_offset' == $action['func_name']) {
+            if ($action['func_name'] == 'crop' || $action['func_name'] == 'crop_offset') {
                 $cropped = true;
             }
         }
 
         // zoom functionality is not supported with the 'crop-style' functions
-        if (!$cropped && isset($_GET['zoom']) && $this->zoom_enabled) {
+        if (! $cropped && isset($_GET['zoom']) && $this->zoom_enabled) {
             $this->zoom($_GET['zoom']);
         }
 
         // we fail if the image size is too small
-        if (1 > $this->new_width || 1 > $this->new_height) {
+        if ($this->new_width < 1 || $this->new_height < 1) {
             return false;
         }
 
@@ -879,25 +929,25 @@ class GifImage
         $gm[8] = $i_bytes[0];
         $gm[9] = $i_bytes[1];
 
-        $this->image_data = $gm . $this->g_mod . $this->image_data;
+        $this->image_data = $gm.$this->g_mod.$this->image_data;
 
         $con = '';
         if (strlen($this->g_mode)) {
-            $con = $this->g_mode . "\x3B";
+            $con = $this->g_mode."\x3B";
         } else {
             $con = "\x3B";
         }
 
-        if (!$this->au) {
-            $con = "\x21\xFE\x0Eautomattic_inc\x00" . $con;
+        if (! $this->au) {
+            $con = "\x21\xFE\x0Eautomattic_inc\x00".$con;
         }
 
         $this->image_data .= (strlen($con) >= 19 ? $con : "\x21");
 
-        if (!headers_sent()) {
-            header('Content-Length: ' . strlen($this->image_data));
+        if (! headers_sent()) {
+            header('Content-Length: '.strlen($this->image_data));
             if ($this->send_etag_header) {
-                header('ETag: "' . substr(md5(strlen($this->image_data) . '.' . time()), 0, 16) . '"');
+                header('ETag: "'.substr(md5(strlen($this->image_data).'.'.time()), 0, 16).'"');
             }
         }
 
@@ -939,6 +989,7 @@ class GifImage
         if (is_array($this->img_effect->processed)) {
             $this->processed = array_merge($this->processed, $this->img_effect->processed);
         }
+
         return $this->processed;
     }
 

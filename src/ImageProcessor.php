@@ -8,34 +8,57 @@ use GmagickException;
 class ImageProcessor
 {
     private $_JPG_MAX_QUALITY;
+
     private $_PNG_MAX_QUALITY;
+
     private $_PNG_ZLIB_COMPRESSION_LEVEL;
+
     private $_PNG_COMPRESSION_FILTER;
+
     private $_WEBP_MAX_QUALITY;
+
     private $_UPSCALE_MAX_PIXELS;
+
     private $_UPSCALE_MAX_PIXELS_GIF;
+
     private $_IMAGE_MAX_WIDTH;
+
     private $_IMAGE_MAX_HEIGHT;
 
     private $_PNGCRUSH;
+
     private $_PNGQUANT;
+
     private $_OPTIPNG;
+
     private $_JPEGTRAN;
+
     private $_JPEGOPTIM;
+
     private $_CWEBP;
 
     private $_CWEBP_LOSSLESS;
+
     private $_CWEBP_DEFAULT_META_STRIP;
+
     private $_DISABLE_IMAGE_OPTIMIZATIONS;
+
     private $_ALLOW_DIMS_CHAINING;
 
     private $image = null;
+
     private $image_data = null;
+
     private $image_width = 0;
+
     private $image_height = 0;
+
     private $image_type = 0;
+
     private $image_format = '';
+
     private $image_has_transparency = false;
+
     private $mime_type = '';
 
     public static $allowed_functions = ['w', 'h', 'crop',
@@ -44,18 +67,31 @@ class ImageProcessor
     ];
 
     private $jpeg_details = null;
+
     private $upscale = null;
+
     private $quality = null;
+
     private $norm_color_profile = true;
+
     private $send_nosniff_header = true;
+
     public $use_client_hints = false;
+
     private $dpr_header_value = false;
+
     private $send_etag_header = false;
+
     private $send_bytes_saved = false;
+
     private $canonical_url = null;
+
     private $image_max_age = null;
+
     private $bytes_saved = 0;
+
     private $icc_profile_removed_size = 0;
+
     private $processed = [];
 
     public function __construct()
@@ -74,7 +110,7 @@ class ImageProcessor
         // Allow global image optimization disabling for server load management
         $this->_DISABLE_IMAGE_OPTIMIZATIONS = defined('DISABLE_IMAGE_OPTIMIZATIONS') ? DISABLE_IMAGE_OPTIMIZATIONS : false;
 
-        if (!$this->_DISABLE_IMAGE_OPTIMIZATIONS) {
+        if (! $this->_DISABLE_IMAGE_OPTIMIZATIONS) {
             // External defines should be set to the local file path of the utilities
             $this->_PNGCRUSH = defined('PNGCRUSH') ? PNGCRUSH : false;
             $this->_PNGQUANT = defined('PNGQUANT') ? PNGQUANT : false;
@@ -114,44 +150,44 @@ class ImageProcessor
     private function send_headers($file_size = null)
     {
         if ($file_size) {
-            header('Content-Length: ' . $file_size);
+            header('Content-Length: '.$file_size);
         }
 
-        header('Content-Type: ' . $this->mime_type);
-        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', time()) . ' GMT');
+        header('Content-Type: '.$this->mime_type);
+        header('Last-Modified: '.gmdate('D, d M Y H:i:s', time()).' GMT');
 
         if ($this->image_max_age) {
-            header('Expires: ' . gmdate('D, d M Y H:i:s', time() + $this->image_max_age) . ' GMT');
-            header('Cache-Control: public, max-age=' . $this->image_max_age);
+            header('Expires: '.gmdate('D, d M Y H:i:s', time() + $this->image_max_age).' GMT');
+            header('Cache-Control: public, max-age='.$this->image_max_age);
         }
         if ($this->canonical_url) {
-            header('Link: <' . $this->canonical_url . '>; rel="canonical"');
+            header('Link: <'.$this->canonical_url.'>; rel="canonical"');
         }
         if ($this->send_nosniff_header) {
             header('X-Content-Type-Options: nosniff');
         }
         if ($this->send_etag_header && $file_size) {
-            header('ETag: "' . substr(md5($file_size . '.' . time()), 0, 16) . '"');
+            header('ETag: "'.substr(md5($file_size.'.'.time()), 0, 16).'"');
         }
-        if (0 < $this->bytes_saved) {
-            header('X-Bytes-Saved: ' . $this->bytes_saved);
+        if ($this->bytes_saved > 0) {
+            header('X-Bytes-Saved: '.$this->bytes_saved);
         }
         if ($this->_DISABLE_IMAGE_OPTIMIZATIONS) {
             header('X-Optim-Disabled: true');
         }
-        if ($this->_CWEBP && 'image/gif' != $this->mime_type) {
+        if ($this->_CWEBP && $this->mime_type != 'image/gif') {
             // The Vary header must be sent for all non-GIF images if WEBP is enabled
             header('Vary: Accept');
         }
-        if (false !== $this->dpr_header_value) {
-            header('Content-DPR: ' . $this->dpr_header_value);
+        if ($this->dpr_header_value !== false) {
+            header('Content-DPR: '.$this->dpr_header_value);
         }
     }
 
     private function pngcrush($file)
     {
         $transformed = tempnam('/dev/shm/', 'crush-post-');
-        $cmd = $this->_PNGCRUSH . " $file $transformed 2>&1";
+        $cmd = $this->_PNGCRUSH." $file $transformed 2>&1";
         exec($cmd, $o, $e);
 
         if ($e == 0 && file_exists($transformed)) {
@@ -164,12 +200,13 @@ class ImageProcessor
     private function optipng($file, $flags = '')
     {
         $transformed = tempnam('/dev/shm/', 'tran-opti-');
-        if (!copy($file, $transformed)) {
+        if (! copy($file, $transformed)) {
             @unlink($transformed);
+
             return;
         }
 
-        $cmd = $this->_OPTIPNG . " $flags $transformed >/dev/null 2>&1";
+        $cmd = $this->_OPTIPNG." $flags $transformed >/dev/null 2>&1";
         exec($cmd, $o, $e);
 
         if ($e == 0 && file_exists($transformed)) {
@@ -182,7 +219,7 @@ class ImageProcessor
     private function jpegtran($file)
     {
         $transformed = tempnam('/dev/shm/', 'tran-post-');
-        $cmd = $this->_JPEGTRAN . " -copy all -optimize -progressive -outfile $transformed $file 2>&1";
+        $cmd = $this->_JPEGTRAN." -copy all -optimize -progressive -outfile $transformed $file 2>&1";
         exec($cmd, $o, $e);
 
         if ($e == 0 && file_exists($transformed)) {
@@ -194,9 +231,9 @@ class ImageProcessor
 
     private function webp_supported()
     {
-        return ($this->_CWEBP && false !== $this->_CWEBP &&
-            ((isset($_SERVER['HTTP_ACCEPT']) && false !== strpos($_SERVER['HTTP_ACCEPT'], 'image/webp')) ||
-            isset($_GET['webp']) && 1 == intval($_GET['webp'])));
+        return $this->_CWEBP && $this->_CWEBP !== false &&
+            ((isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'image/webp') !== false) ||
+            isset($_GET['webp']) && intval($_GET['webp']) == 1);
     }
 
     private function cwebp($file)
@@ -220,17 +257,17 @@ class ImageProcessor
             default:
                 $cmd .= ' -metadata all';
         }
-        if ('image/jpeg' == $this->mime_type) {
+        if ($this->mime_type == 'image/jpeg') {
             if ($strip && in_array($strip, ['all', 'info', 'color'], true)) {
                 $this->exif_rotate($file, $strip);
             }
-            if (!$this->_CWEBP_LOSSLESS && Gmagick::IMGTYPE_GRAYSCALE == $this->image->getimagetype()) {
+            if (! $this->_CWEBP_LOSSLESS && $this->image->getimagetype() == Gmagick::IMGTYPE_GRAYSCALE) {
                 // We have to increase the quality for grayscale images otherwise they are generally too degraded.
                 // This can also be fixed with the '-lossless' parameter, but that increases the size significantly.
                 $this->quality = $this->_WEBP_MAX_QUALITY;
             }
             $cmd .= ' -m 2';
-        } elseif ('image/png' == $this->mime_type) {
+        } elseif ($this->mime_type == 'image/png') {
             $cmd .= ' -alpha_q 100';
         } else {
             $cmd .= ' -m 2';
@@ -243,9 +280,11 @@ class ImageProcessor
 
         if ($e == 0 && file_exists($transformed)) {
             rename($transformed, $file);
+
             return true;
         } else {
             @unlink($transformed);
+
             return false;
         }
     }
@@ -253,8 +292,9 @@ class ImageProcessor
     private function jpegoptim($file)
     {
         $transformed = tempnam('/dev/shm/', 'tran-jopt-');
-        if (!copy($file, $transformed)) {
+        if (! copy($file, $transformed)) {
             @unlink($transformed);
+
             return false;
         }
 
@@ -264,7 +304,7 @@ class ImageProcessor
             $this->exif_rotate($transformed, $strip);
         }
 
-        $cmd = $this->_JPEGOPTIM . ' -T0.0 --all-progressive';
+        $cmd = $this->_JPEGOPTIM.' -T0.0 --all-progressive';
         switch ($strip) {
             case 'all':
                 $cmd .= ' -f --strip-all';
@@ -281,19 +321,21 @@ class ImageProcessor
 
         if ($e == 0 && file_exists($transformed)) {
             rename($transformed, $file);
+
             return true;
         } else {
             @unlink($transformed);
+
             return false;
         }
     }
 
     private function exif_rotate($file, $strip)
     {
-        if (!function_exists('exif_read_data')) {
+        if (! function_exists('exif_read_data')) {
             return;
         }
-        if (!in_array($strip, ['all', 'info'])) {
+        if (! in_array($strip, ['all', 'info'])) {
             return;
         }
 
@@ -305,7 +347,7 @@ class ImageProcessor
         $exif = @exif_read_data($file);
         error_reporting($old_level);
 
-        if (false === $exif || !isset($exif['Orientation'])) {
+        if ($exif === false || ! isset($exif['Orientation'])) {
             return;
         }
 
@@ -322,7 +364,7 @@ class ImageProcessor
                 break;
         }
         if ($degrees) {
-            if (!defined('PHOTON_USE_OPENCV') || !PHOTON_USE_OPENCV) {
+            if (! defined('PHOTON_USE_OPENCV') || ! PHOTON_USE_OPENCV) {
                 // Reset gmagick object, preventing the previous image from affecting the read
                 $this->image = new Gmagick();
             }
@@ -339,19 +381,19 @@ class ImageProcessor
 
         // If the image color was originally PALETTE and it has been changed, then change it back
         // to PALETTE, but only if PNGQUANT is disabled (otherwise the final file size is larger)
-        if (!$this->_PNGQUANT && Gmagick::IMGTYPE_PALETTE == $this->image_type &&
-            Gmagick::IMGTYPE_PALETTE != $this->image->getimagetype()) {
+        if (! $this->_PNGQUANT && $this->image_type == Gmagick::IMGTYPE_PALETTE &&
+            $this->image->getimagetype() != Gmagick::IMGTYPE_PALETTE) {
             $this->image->setimagetype(Gmagick::IMGTYPE_PALETTE);
         }
 
         // GraphicsMagick ocassionally incorrectly converts GRAYSCALEMATTE images
         // GRAYSCALE on write, losing transparency information. See:
-        if (Gmagick::IMGTYPE_GRAYSCALEMATTE === $this->image->getimagetype()) {
+        if ($this->image->getimagetype() === Gmagick::IMGTYPE_GRAYSCALEMATTE) {
             $this->image->setimagetype(Gmagick::IMGTYPE_TRUECOLORMATTE);
         }
 
         if ($this->quality) {
-            if (100 == $this->quality) {
+            if ($this->quality == 100) {
                 $this->_CWEBP_LOSSLESS = true;
             }
             $this->quality = min(max(intval($this->quality), 20), $this->_PNG_MAX_QUALITY);
@@ -373,7 +415,7 @@ class ImageProcessor
         if ($this->webp_supported() && $this->cwebp($output)) {
             $this->mime_type = 'image/webp';
         } elseif ($this->_PNGQUANT) {
-            exec($this->_PNGQUANT . " --speed 5 --quality={$this->quality}-100 -f -o $output $output");
+            exec($this->_PNGQUANT." --speed 5 --quality={$this->quality}-100 -f -o $output $output");
             if ($this->_OPTIPNG) {
                 $this->optipng($output, '-o1');
             }
@@ -401,12 +443,12 @@ class ImageProcessor
 
         $original_quality = $this->_JPG_MAX_QUALITY;
 
-        if (isset($this->jpeg_details['q']) && !empty($this->jpeg_details['q'])) {
+        if (isset($this->jpeg_details['q']) && ! empty($this->jpeg_details['q'])) {
             $original_quality = $this->jpeg_details['q'];
         }
 
         if ($this->quality) {
-            if (100 == $this->quality) {
+            if ($this->quality == 100) {
                 $this->_CWEBP_LOSSLESS = true;
             }
             $this->quality = min(max(intval($this->quality), 20), $this->_JPG_MAX_QUALITY);
@@ -451,14 +493,14 @@ class ImageProcessor
     {
         unset($this->image_data);
 
-        if (!$this->image->process_image_functions($this->_UPSCALE_MAX_PIXELS_GIF)) {
+        if (! $this->image->process_image_functions($this->_UPSCALE_MAX_PIXELS_GIF)) {
             if (function_exists('imageresize_graceful_fail')) {
                 imageresize_graceful_fail();
             } elseif (function_exists('httpdie')) {
                 httpdie('400 Bad Request', 'Sorry, the parameters you provided were not valid');
             } else {
                 header('HTTP/1.1 400 Bad Request');
-                die('Sorry, the parameters you provided were not valid');
+                exit('Sorry, the parameters you provided were not valid');
             }
         }
 
@@ -485,12 +527,13 @@ class ImageProcessor
         //   or
         // we have upscaled without permission (upscale == false) or have overstepped the upscale limits
         if (($new_w == $this->image_width && $new_h == $this->image_height &&
-                !('image/jpeg' == $this->mime_type && (isset($_GET['quality']) || isset($_GET['strip'])))) ||
+                ! ($this->mime_type == 'image/jpeg' && (isset($_GET['quality']) || isset($_GET['strip'])))) ||
             ($new_w < 3 || $new_h < 3) ||
             ($new_w > $this->image_width && $new_h > $this->image_height &&
-                (!$this->upscale || $new_w > $this->_UPSCALE_MAX_PIXELS || $new_h > $this->_UPSCALE_MAX_PIXELS))) {
+                (! $this->upscale || $new_w > $this->_UPSCALE_MAX_PIXELS || $new_h > $this->_UPSCALE_MAX_PIXELS))) {
             return false;
         }
+
         return true;
     }
 
@@ -502,7 +545,7 @@ class ImageProcessor
         }
 
         try {
-            if (!$this->norm_color_profile) {
+            if (! $this->norm_color_profile) {
                 return;
             }
             $profile = '';
@@ -513,16 +556,16 @@ class ImageProcessor
                 return;
             }
             $this->icc_profile_removed_size = strlen($profile);
-            if (0 == $this->icc_profile_removed_size) {
+            if ($this->icc_profile_removed_size == 0) {
                 return;
             }
 
-            $icc = file_get_contents(dirname(__FILE__) . '/icc-profiles/sRGB.icc');
+            $icc = file_get_contents(dirname(__FILE__).'/icc-profiles/sRGB.icc');
 
             // apply the sRGB profile
             $this->image->profileimage('ICM', $icc);
 
-            if ('image/jpeg' == $this->mime_type) {
+            if ($this->mime_type == 'image/jpeg') {
                 $res = $this->image->getimageresolution();
                 // if GMagick returns an invalid resolution, we check whether our jpeg header reading has
                 // a valid resolution higher than the default of 72x72. If it does we use that setting.
@@ -530,7 +573,7 @@ class ImageProcessor
                     $this->image->setimageresolution($this->jpeg_details['x'], $this->jpeg_details['y']);
                 }
 
-                if (Gmagick::COLORSPACE_RGB != $this->image->getimagecolorspace()) {
+                if ($this->image->getimagecolorspace() != Gmagick::COLORSPACE_RGB) {
                     $this->image->setimagecolorspace(Gmagick::COLORSPACE_RGB);
                 }
             }
@@ -551,7 +594,7 @@ class ImageProcessor
             return intval(str_replace('M', '', $mem_limit)) * 1024 * 1024;
         } elseif (preg_match('/^[0-9]+K$/', $mem_limit)) {
             return intval(str_replace('K', '', $mem_limit)) * 1024;
-        } elseif (0 < intval($mem_limit)) {
+        } elseif (intval($mem_limit) > 0) {
             return intval($mem_limit);
         } else {
             return 128 * 1024 * 1024;
@@ -560,19 +603,19 @@ class ImageProcessor
 
     private function acceptable_dimensions()
     {
-        if (24 > strlen($this->image_data)) {
+        if (strlen($this->image_data) < 24) {
             return false;
         }
 
         $w = $h = 0;
-        if ('GIF8' === substr($this->image_data, 0, 4)) {
+        if (substr($this->image_data, 0, 4) === 'GIF8') {
             $w = ord(substr($this->image_data, 7, 1)) << 8;
             $w = $w | ord(substr($this->image_data, 6, 1));
 
             $h = ord(substr($this->image_data, 9, 1)) << 8;
             $h = $h | ord(substr($this->image_data, 8, 1));
-        } elseif ("PNG\r\n\032\n" == substr($this->image_data, 1, 7) &&
-                ('IHDR' == substr($this->image_data, 12, 4))) {
+        } elseif (substr($this->image_data, 1, 7) == "PNG\r\n\032\n" &&
+                (substr($this->image_data, 12, 4) == 'IHDR')) {
             $w = ord(substr($this->image_data, 16, 1)) << 8;
             $w = ($w | ord(substr($this->image_data, 17, 1))) << 8;
             $w = ($w | ord(substr($this->image_data, 18, 1))) << 8;
@@ -593,19 +636,19 @@ class ImageProcessor
             }
         }
 
-        return ($this->_IMAGE_MAX_WIDTH > $w || $this->_IMAGE_MAX_HEIGHT > $h);
+        return $this->_IMAGE_MAX_WIDTH > $w || $this->_IMAGE_MAX_HEIGHT > $h;
     }
 
     public function load_image()
     {
-        if (!$this->image_data || !$this->acceptable_dimensions()) {
+        if (! $this->image_data || ! $this->acceptable_dimensions()) {
             return false;
         }
 
-        if ('GIF' === substr($this->image_data, 0, 3)) {
+        if (substr($this->image_data, 0, 3) === 'GIF') {
             $this->image = new GifImage($this->image_data);
             $this->image->disable_zoom(); // zooming is handled in this class
-            if (!$this->send_etag_header) {
+            if (! $this->send_etag_header) {
                 $this->image->disable_etag_header();
             }
             $this->image_format = 'gif';
@@ -624,14 +667,14 @@ class ImageProcessor
                 $this->image_format = strtolower($this->image->getimageformat());
                 if (in_array($this->image_format, ['jpg', 'jpeg'])) {
                     $this->mime_type = 'image/jpeg';
-                    if (!isset($this->jpeg_details)) {
+                    if (! isset($this->jpeg_details)) {
                         $this->load_jpeg_info();
                     }
-                } elseif ('png' == $this->image_format) {
+                } elseif ($this->image_format == 'png') {
                     $this->mime_type = 'image/png';
-                } elseif ('bmp' == $this->image_format) {
+                } elseif ($this->image_format == 'bmp') {
                     $this->mime_type = 'image/bmp';
-                } elseif ('webp' == $this->image_format) {
+                } elseif ($this->image_format == 'webp') {
                     $this->mime_type = 'image/webp';
                 } else {
                     $this->mime_type = 'application/octet-stream';
@@ -652,6 +695,7 @@ class ImageProcessor
                 return false;
             }
         }
+
         return true;
     }
 
@@ -659,17 +703,18 @@ class ImageProcessor
     {
         $retA = [];
         foreach ($_GET as $arg => $val) {
-            if (!is_numeric($arg) && in_array($arg, self::$allowed_functions, true)) {
+            if (! is_numeric($arg) && in_array($arg, self::$allowed_functions, true)) {
                 $retA[$arg] = $val;
             }
         }
+
         return $retA;
     }
 
     public function process_image()
     {
-        $this->upscale = isset($_GET['upscale']) && '1' == $_GET['upscale'];
-        if (isset($_GET['quality']) && 0 != intval($_GET['quality'])) {
+        $this->upscale = isset($_GET['upscale']) && $_GET['upscale'] == '1';
+        if (isset($_GET['quality']) && intval($_GET['quality']) != 0) {
             $this->quality = intval($_GET['quality']);
         }
 
@@ -677,9 +722,9 @@ class ImageProcessor
 
         // This type of crop is always processed first and the rest of the
         // arguments are processed in the order that they were specified in
-        if (isset($args['crop']) && '1' == $args['crop']) {
-            $requested_w = (!empty($args['w'])) ? max(0, intval($args['w'])) : null;
-            $requested_h = (!empty($args['h'])) ? max(0, intval($args['h'])) : null;
+        if (isset($args['crop']) && $args['crop'] == '1') {
+            $requested_w = (! empty($args['w'])) ? max(0, intval($args['w'])) : null;
+            $requested_h = (! empty($args['h'])) ? max(0, intval($args['h'])) : null;
             if (isset($args['w'])) {
                 unset($args['w']);
             }
@@ -694,21 +739,21 @@ class ImageProcessor
 
         reset($args);
 
-        while (0 < count($args)) {
+        while (count($args) > 0) {
             // get the next argument to process
             $arg = key($args);
             $val = current($args);
 
             switch ($arg) {
                 case 'crop':
-                    if (!is_array($val) && strpos($val, ',')) {    // 1st-style crop (crop=x,y,w,h)
+                    if (! is_array($val) && strpos($val, ',')) {    // 1st-style crop (crop=x,y,w,h)
                         $params = explode(',', $val);
-                        if (4 == count($params) && $this->crop_offset($params[0], $params[1], $params[2], $params[3])) {
+                        if (count($params) == 4 && $this->crop_offset($params[0], $params[1], $params[2], $params[3])) {
                             $this->processed[] = 'crop_offset';
                         }
-                    } elseif ('1' == $val) {     // 2nd-style crop (w=X&h=Y&crop=1)
-                        $requested_w = (!empty($args['w'])) ? max(0, intval($args['w'])) : null;
-                        $requested_h = (!empty($args['h'])) ? max(0, intval($args['h'])) : null;
+                    } elseif ($val == '1') {     // 2nd-style crop (w=X&h=Y&crop=1)
+                        $requested_w = (! empty($args['w'])) ? max(0, intval($args['w'])) : null;
+                        $requested_h = (! empty($args['h'])) ? max(0, intval($args['h'])) : null;
                         if (isset($args['w'])) {
                             unset($args['w']);
                         }
@@ -725,7 +770,7 @@ class ImageProcessor
                 case 'crop_offset':  // explicit 1st-style crop (crop=x,y,w,h)
                     $params = explode(',', $val);
                     unset($args['crop_offset']);
-                    if (4 == count($params) && $this->crop_offset($params[0], $params[1], $params[2], $params[3])) {
+                    if (count($params) == 4 && $this->crop_offset($params[0], $params[1], $params[2], $params[3])) {
                         $this->processed[] = 'crop_offset';
                     }
                     break;
@@ -734,7 +779,7 @@ class ImageProcessor
                     $s_params = $this->apply_zoom('resize', $val);
                     unset($args['resize']);
                     $params = explode(',', $s_params);
-                    if (2 == count($params) && $this->resize($params[0], $params[1])) {
+                    if (count($params) == 2 && $this->resize($params[0], $params[1])) {
                         $this->processed[] = 'resize_and_crop';
                     }
                     break;
@@ -743,19 +788,19 @@ class ImageProcessor
                     $s_params = $this->apply_zoom('fit', $val);
                     unset($args['fit']);
                     $params = explode(',', $s_params);
-                    if (2 == count($params) && $this->fit($params[0], $params[1])) {
+                    if (count($params) == 2 && $this->fit($params[0], $params[1])) {
                         $this->processed[] = 'fit_in_box';
                     }
                     break;
 
                 case 'w':
-                    $requested_w = (!empty($val)) ? max(0, intval($val)) : null;
+                    $requested_w = (! empty($val)) ? max(0, intval($val)) : null;
                     unset($args['w']);
                     if ($requested_w) {
                         $w = $this->apply_zoom('set_width', $requested_w);
                         if ($this->set_width($w)) {
                             $this->processed[] = 'set_width';
-                            if (!$this->_ALLOW_DIMS_CHAINING && isset($args['h'])) {
+                            if (! $this->_ALLOW_DIMS_CHAINING && isset($args['h'])) {
                                 unset($args['h']);
                             }
                         }
@@ -763,13 +808,13 @@ class ImageProcessor
                     break;
 
                 case 'h':
-                    $requested_h = (!empty($val)) ? max(0, intval($val)) : null;
+                    $requested_h = (! empty($val)) ? max(0, intval($val)) : null;
                     unset($args['h']);
                     if ($requested_h) {
                         $h = $this->apply_zoom('set_height', $requested_h);
                         if ($this->set_height($h)) {
                             $this->processed[] = 'set_height';
-                            if (!$this->_ALLOW_DIMS_CHAINING && isset($args['w'])) {
+                            if (! $this->_ALLOW_DIMS_CHAINING && isset($args['w'])) {
                                 unset($args['w']);
                             }
                         }
@@ -781,7 +826,7 @@ class ImageProcessor
                 case 'contrast':
                 case 'filter':
                 case 'smooth':
-                    if ('image/gif' == $this->mime_type) {
+                    if ($this->mime_type == 'image/gif') {
                         $this->image->add_function($arg, $val);
                     } else {
                         // Due to the fact that these functions require memory intensive conversions back and forth
@@ -804,7 +849,7 @@ class ImageProcessor
 
                 case 'lb':
                     // letterboxing is not available for GIF images
-                    if ('image/gif' != $this->mime_type && $this->letterbox($val)) {
+                    if ($this->mime_type != 'image/gif' && $this->letterbox($val)) {
                         $this->processed[] = 'letterbox';
                     }
 
@@ -813,7 +858,7 @@ class ImageProcessor
 
                 case 'ulb':
                     // unletterboxing is not available for GIF images
-                    if ('image/gif' != $this->mime_type && 'true' == $val) {
+                    if ($this->mime_type != 'image/gif' && $val == 'true') {
                         // Due to the fact that these functions require memory intensive conversions back and forth
                         // between Gmagick and GD, we only allow unletterboxing if the (roughly estimated) memory
                         // requirement will be less than the script memory limit
@@ -835,7 +880,7 @@ class ImageProcessor
 
         switch ($this->mime_type) {
             case 'image/gif':
-                if (0 == count($this->processed)) {
+                if (count($this->processed) == 0) {
                     // Unset the GifImage object to free some memory for the `echo` below
                     unset($this->image);
                     $this->send_headers(strlen($this->image_data));
@@ -860,10 +905,10 @@ class ImageProcessor
         $new_w = min($width, $this->image_width);
         $new_h = min($height, $this->image_height);
 
-        if (!$new_w) {
+        if (! $new_w) {
             $new_w = intval($new_h * $aspect_ratio);
         }
-        if (!$new_h) {
+        if (! $new_h) {
             $new_h = intval($new_w / $aspect_ratio);
         }
 
@@ -876,12 +921,13 @@ class ImageProcessor
         $s_y = round(($this->image_height - $crop_h) / 2);
 
         // checks params and skips this transformation if it is found to be out of bounds
-        if (!$this->valid_request($new_w, $new_h)) {
+        if (! $this->valid_request($new_w, $new_h)) {
             return false;
         }
 
-        if ('image/gif' == $this->mime_type) {
-            $this->image->add_function('resize_and_crop', ($width . ',' . $height));
+        if ($this->mime_type == 'image/gif') {
+            $this->image->add_function('resize_and_crop', ($width.','.$height));
+
             return true;
         }
 
@@ -895,6 +941,7 @@ class ImageProcessor
 
         $this->image_width = $new_w;
         $this->image_height = $new_h;
+
         return true;
     }
 
@@ -940,18 +987,20 @@ class ImageProcessor
         }
 
         // checks params and skips this transformation if it is found to be out of bounds
-        if (!$this->valid_request($new_w, $new_h)) {
+        if (! $this->valid_request($new_w, $new_h)) {
             return false;
         }
 
-        if ('image/gif' == $this->mime_type) {
-            $this->image->add_function('crop_offset', ($s_x . ',' . $s_y . ',' . $new_w . ',' . $new_h));
+        if ($this->mime_type == 'image/gif') {
+            $this->image->add_function('crop_offset', ($s_x.','.$s_y.','.$new_w.','.$new_h));
+
             return true;
         }
 
         $this->image->cropimage($new_w, $new_h, $s_x, $s_y);
         $this->image_width = $new_w;
         $this->image_height = $new_h;
+
         return true;
     }
 
@@ -960,21 +1009,22 @@ class ImageProcessor
         $new_w = intval($width);
         $new_h = intval($height);
 
-        if (0 >= $new_w || 0 >= $new_h ||
+        if ($new_w <= 0 || $new_h <= 0 ||
             (($new_w > $this->image_width) && ($new_w > $this->_UPSCALE_MAX_PIXELS)) ||
             (($new_h > $this->image_height) && ($new_h > $this->_UPSCALE_MAX_PIXELS))) {
             return false;
         }
 
-        if ('image/gif' == $this->mime_type) { // the GIF class processes internally
-            $this->image->add_function('resize_and_crop', ($new_w . ',' . $new_h));
+        if ($this->mime_type == 'image/gif') { // the GIF class processes internally
+            $this->image->add_function('resize_and_crop', ($new_w.','.$new_h));
+
             return true;
         }
 
         $this->upscale = true;
 
         // check dims and skip this transformation if they are found to be out of bounds
-        if (!$this->valid_request($new_w, $new_h)) {
+        if (! $this->valid_request($new_w, $new_h)) {
             return false;
         }
 
@@ -1004,6 +1054,7 @@ class ImageProcessor
 
         $this->image_width = $new_w;
         $this->image_height = $new_h;
+
         return true;
     }
 
@@ -1013,13 +1064,14 @@ class ImageProcessor
         $new_h = $requested_h = abs(intval($height));
 
         // we do not allow both new width and height to be larger at the same time
-        if (!$requested_w || !$requested_h ||
+        if (! $requested_w || ! $requested_h ||
             ($this->image_width < $requested_w && $this->image_height < $requested_h)) {
             return false;
         }
 
-        if ('image/gif' == $this->mime_type) { // the GIF class processes internally
-            $this->image->add_function('fit_in_box', ($requested_w . ',' . $requested_h));
+        if ($this->mime_type == 'image/gif') { // the GIF class processes internally
+            $this->image->add_function('fit_in_box', ($requested_w.','.$requested_h));
+
             return true;
         }
 
@@ -1044,7 +1096,7 @@ class ImageProcessor
         }
 
         // checks params and skips this transformation if it is found to be out of bounds
-        if (!$this->valid_request($new_w, $new_h)) {
+        if (! $this->valid_request($new_w, $new_h)) {
             return false;
         }
 
@@ -1056,19 +1108,20 @@ class ImageProcessor
 
         $this->image_width = $new_w;
         $this->image_height = $new_h;
+
         return true;
     }
 
     public function set_width($width)
     {
-        if ('%' == substr($width, -1)) {
+        if (substr($width, -1) == '%') {
             $width = round($this->image_width * abs(intval($width)) / 100);
         } else {
             $width = intval($width);
         }
 
         $ratio = $this->image_width / $width;
-        if (0 == $ratio) {
+        if ($ratio == 0) {
             return false;
         }
 
@@ -1076,12 +1129,13 @@ class ImageProcessor
         $new_h = intval($this->image_height / $ratio);
 
         // checks params and skips this transformation if it is found to be out of bounds
-        if (!$this->valid_request($new_w, $new_h)) {
+        if (! $this->valid_request($new_w, $new_h)) {
             return false;
         }
 
-        if ('image/gif' == $this->mime_type) {
+        if ($this->mime_type == 'image/gif') {
             $this->image->add_function('set_width', $new_w);
+
             return true;
         }
 
@@ -1093,19 +1147,20 @@ class ImageProcessor
 
         $this->image_width = $new_w;
         $this->image_height = $new_h;
+
         return true;
     }
 
     public function set_height($height)
     {
-        if ('%' === substr($height, -1)) {
+        if (substr($height, -1) === '%') {
             $height = round($this->image_height * abs(intval($height)) / 100);
         } else {
             $height = intval($height);
         }
 
         $ratio = $this->image_height / $height;
-        if (0 == $ratio) {
+        if ($ratio == 0) {
             return false;
         }
 
@@ -1113,12 +1168,13 @@ class ImageProcessor
         $new_h = intval($this->image_height / $ratio);
 
         // checks params and skips this transformation if it is found to be out of bounds
-        if (!$this->valid_request($new_w, $new_h)) {
+        if (! $this->valid_request($new_w, $new_h)) {
             return false;
         }
 
-        if ('image/gif' == $this->mime_type) {
+        if ($this->mime_type == 'image/gif') {
             $this->image->add_function('set_height', $new_h);
+
             return true;
         }
 
@@ -1130,28 +1186,31 @@ class ImageProcessor
 
         $this->image_width = $new_w;
         $this->image_height = $new_h;
+
         return true;
     }
 
     public function client_hint_dpr()
     {
-        if (true === $this->use_client_hints) {
-            if (true === array_key_exists('HTTP_DPR', $_SERVER)) {
+        if ($this->use_client_hints === true) {
+            if (array_key_exists('HTTP_DPR', $_SERVER) === true) {
                 return floatval($_SERVER['HTTP_DPR']);
             }
         }
+
         return false;
     }
 
     public function determine_zoom()
     {
         $hint = $this->client_hint_dpr();
-        if (false !== $hint) {
+        if ($hint !== false) {
             return $hint;
         }
         if (isset($_GET['zoom'])) {
             return floatval($_GET['zoom']);
         }
+
         return 1;
     }
 
@@ -1172,7 +1231,7 @@ class ImageProcessor
             $zoom = ceil($zoom * 2) / 2;
         }
 
-        if (false !== $this->client_hint_dpr()) {
+        if ($this->client_hint_dpr() !== false) {
             // If we are responding to a request which provided a DPR
             // hint then the client is expecting a Content-DPR header
             // in the response
@@ -1189,7 +1248,7 @@ class ImageProcessor
                 break;
             case 'fit':
             case 'resize':
-                list($width, $height) = explode(',', $arguments);
+                [$width, $height] = explode(',', $arguments);
                 $new_width = $width * $zoom;
                 $new_height = $height * $zoom;
                 // Avoid dimensions larger than original.
@@ -1229,19 +1288,19 @@ class ImageProcessor
             $g = ($rgb >> 8) & 0xFF;
             $b = $rgb & 0xFF;
 
-            if (-1 == $lb_red) {
+            if ($lb_red == -1) {
                 $lb_red = $r;
             } elseif ($lb_red > $r + 1 || $lb_red < $r - 1) {
                 $lb_red = -1;
                 break;
             }
-            if (-1 == $lb_green) {
+            if ($lb_green == -1) {
                 $lb_green = $g;
             } elseif ($lb_green > $g + 1 || $lb_green < $g - 1) {
                 $lb_green = -1;
                 break;
             }
-            if (-1 == $lb_blue) {
+            if ($lb_blue == -1) {
                 $lb_blue = $b;
             } elseif ($lb_blue > $b + 1 || $lb_blue < $b - 1) {
                 $lb_blue = -1;
@@ -1249,8 +1308,9 @@ class ImageProcessor
             }
         }
 
-        if (0 > $lb_red || 0 > $lb_green || 0 > $lb_blue) {
+        if ($lb_red < 0 || $lb_green < 0 || $lb_blue < 0) {
             $img_effect->gd_to_gmagick($this->image);
+
             return false;
         }
 
@@ -1283,8 +1343,9 @@ class ImageProcessor
             }
         }
 
-        if (0 > $first_unmatched_line) {
+        if ($first_unmatched_line < 0) {
             $img_effect->gd_to_gmagick($this->image);
+
             return false;
         }
 
@@ -1319,34 +1380,34 @@ class ImageProcessor
 
         $img_effect->gd_to_gmagick($this->image);
 
-        if (0 > $last_unmatched_line || $last_unmatched_line <= $first_unmatched_line) {
+        if ($last_unmatched_line < 0 || $last_unmatched_line <= $first_unmatched_line) {
             return false;
         }
 
         return $this->crop_offset(
             '0px',
-            $first_unmatched_line . 'px',
-            $this->image_width . 'px',
-            ($last_unmatched_line - $first_unmatched_line) . 'px'
+            $first_unmatched_line.'px',
+            $this->image_width.'px',
+            ($last_unmatched_line - $first_unmatched_line).'px'
         );
     }
 
     public function letterbox($args)
     {
         $arg_arr = explode(',', $args);
-        if (2 > count($arg_arr)) {
+        if (count($arg_arr) < 2) {
             return false;
         }
 
         $end_w = abs(intval($arg_arr[0]));
         $end_h = abs(intval($arg_arr[1]));
 
-        if (3 == count($arg_arr)) {
+        if (count($arg_arr) == 3) {
             $color = $arg_arr[2];
-            if (false === strpos($color, '#')) {
-                $color = '#' . $color;
+            if (strpos($color, '#') === false) {
+                $color = '#'.$color;
             }
-            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+            if (! preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
                 $color = '#000';
             }
         } else {
@@ -1354,7 +1415,7 @@ class ImageProcessor
         }
 
         if (($this->image_width == $end_w && $this->image_height == $end_h) ||
-            !$end_w || !$end_h ||
+            ! $end_w || ! $end_h ||
             ($this->image_width < $end_w && $this->image_height < $end_h)) {
             return false;
         }
