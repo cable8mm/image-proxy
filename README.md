@@ -32,4 +32,14 @@ If `Gmagick()` not intellisensed, add in vscode-intelephense/package.json or set
 gmagick
 ```
 
-## Usage
+## Coding style
+
+```sh
+composer lint
+```
+
+## Test
+
+```sh
+composer test
+```

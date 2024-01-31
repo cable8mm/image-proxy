@@ -27,13 +27,13 @@ class GifFrame
 
     public function __set($name, $value)
     {
-        $var = '_' . $name;
+        $var = '_'.$name;
         $this->$var = $value;
     }
 
     public function __get($name)
     {
-        $var = '_' . $name;
+        $var = '_'.$name;
         if (isset($this->$var)) {
             return $this->$var;
         } else {

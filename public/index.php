@@ -3,27 +3,26 @@
 /**
  * Image Proxy - A PHP Image Proxy with Google Pagespeed + Apache cache
  *
- * @package  Image Proxy
  * @author   Sam Lee <cable8mm@gmail.com>
  */
 
 /////////////////////////////////////////////
 // AUTOLOAD
 /////////////////////////////////////////////
-require __DIR__ . '/../vendor/autoload.php';
+require __DIR__.'/../vendor/autoload.php';
 
 define('PHOTON__ALLOW_QUERY_STRINGS', 1);
 
 /////////////////////////////////////////////
 // CONFIG
 /////////////////////////////////////////////
-$hostsWhitelist = require __DIR__ . '/../config/hosts_whitelist.php';
+$hostsWhitelist = require __DIR__.'/../config/hosts_whitelist.php';
 
-require dirname(__FILE__) . '/plugin.php';
-if (file_exists(dirname(__FILE__) . '/../config.php')) {
-    require dirname(__FILE__) . '/../config.php';
-} elseif (file_exists(dirname(__FILE__) . '/config.php')) {
-    require dirname(__FILE__) . '/config.php';
+require dirname(__FILE__).'/plugin.php';
+if (file_exists(dirname(__FILE__).'/../config.php')) {
+    require dirname(__FILE__).'/../config.php';
+} elseif (file_exists(dirname(__FILE__).'/config.php')) {
+    require dirname(__FILE__).'/config.php';
 }
 
 // Explicit Configuration
@@ -98,48 +97,48 @@ define('ALLOW_DIMS_CHAINING', true);
 define('CWEBP_DEFAULT_META_STRIP', 'all');
 
 // You can override this by defining it in config.php
-if (!defined('UPSCALE_MAX_PIXELS')) {
+if (! defined('UPSCALE_MAX_PIXELS')) {
     define('UPSCALE_MAX_PIXELS', 2000);
 }
 
 // Allow smaller upscales for GIFs, compared to the other image types
-if (!defined('UPSCALE_MAX_PIXELS_GIF')) {
+if (! defined('UPSCALE_MAX_PIXELS_GIF')) {
     define('UPSCALE_MAX_PIXELS_GIF', 1000);
 }
 
 // Implicit configuration
-if (file_exists('/usr/bin/optipng') && !defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
+if (file_exists('/usr/bin/optipng') && ! defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
     define('OPTIPNG', '/usr/bin/optipng');
 } else {
     define('OPTIPNG', false);
 }
 
-if (file_exists('/usr/bin/pngquant') && !defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
+if (file_exists('/usr/bin/pngquant') && ! defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
     define('PNGQUANT', '/usr/bin/pngquant');
 } else {
     define('PNGQUANT', false);
 }
 
-if (file_exists('/usr/bin/cwebp') && !defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
+if (file_exists('/usr/bin/cwebp') && ! defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
     define('CWEBP', '/usr/bin/cwebp');
 } else {
     define('CWEBP', false);
 }
 
-if (file_exists('/usr/bin/jpegoptim') && !defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
+if (file_exists('/usr/bin/jpegoptim') && ! defined('DISABLE_IMAGE_OPTIMIZATIONS')) {
     define('JPEGOPTIM', '/usr/bin/jpegoptim');
 } else {
     define('JPEGOPTIM', false);
 }
 
-require dirname(__FILE__) . '/class-image-processor.php';
+require dirname(__FILE__).'/class-image-processor.php';
 
 function httpdie($code = '404 Not Found', $message = 'Error: 404 Not Found')
 {
     $numerical_error_code = preg_replace('/[^\\d]/', '', $code);
     do_action('bump_stats', "http_error-$numerical_error_code");
-    header('HTTP/1.1 ' . $code);
-    die($message);
+    header('HTTP/1.1 '.$code);
+    exit($message);
 }
 
 function fetch_raw_data($url, $timeout = 10, $connect_timeout = 3, $max_redirs = 3, $fetch_from_origin_cdn = false)
@@ -153,7 +152,7 @@ function fetch_raw_data($url, $timeout = 10, $connect_timeout = 3, $max_redirs =
         $timeout = $timeout + 2;
         $is_ssl = preg_match('|^https://|', $url);
         $path = preg_replace('|^http[s]?://|', '', $url);
-        $url = $GLOBALS['origin_image_cdn_url'] . $path;
+        $url = $GLOBALS['origin_image_cdn_url'].$path;
         if ($is_ssl) {
             $url .= '?ssl=1';
         }
@@ -162,53 +161,58 @@ function fetch_raw_data($url, $timeout = 10, $connect_timeout = 3, $max_redirs =
     $parsed = parse_url(apply_filters('url', $url));
     $required = ['scheme', 'host', 'path'];
 
-    if (!$parsed || count(array_intersect_key(array_flip($required), $parsed)) !== count($required)) {
+    if (! $parsed || count(array_intersect_key(array_flip($required), $parsed)) !== count($required)) {
         do_action('bump_stats', 'invalid_url');
+
         return false;
     }
 
     $ip = gethostbyname($parsed['host']);
     $port = getservbyname($parsed['scheme'], 'tcp');
-    $url = $parsed['scheme'] . '://' . $parsed['host'] . $parsed['path'];
+    $url = $parsed['scheme'].'://'.$parsed['host'].$parsed['path'];
 
     if (PHOTON__ALLOW_QUERY_STRINGS && isset($parsed['query'])) {
         $host = strtolower($parsed['host']);
         if (array_key_exists($host, $GLOBALS['origin_domain_exceptions'])) {
             if ($GLOBALS['origin_domain_exceptions'][$host]) {
-                $url .= '?' . $parsed['query'];
+                $url .= '?'.$parsed['query'];
             }
         }
     }
 
     // Ensure we maintain our SSL flag for 'fetch_from_origin_cdn' requests,
     // regardless of whether PHOTON__ALLOW_QUERY_STRINGS is enabled or not.
-    if ($fetch_from_origin_cdn && isset($parsed['query']) && 'ssl=1' == $parsed['query']) {
+    if ($fetch_from_origin_cdn && isset($parsed['query']) && $parsed['query'] == 'ssl=1') {
         $url .= '?ssl=1';
     }
 
     // https://bugs.php.net/bug.php?id=64948
-    if (!filter_var(str_replace('_', '-', $url), FILTER_VALIDATE_URL)) {
+    if (! filter_var(str_replace('_', '-', $url), FILTER_VALIDATE_URL)) {
         do_action('bump_stats', 'invalid_url');
+
         return false;
     }
 
-    $allowed_ip_types = ['flags' => FILTER_FLAG_IPV4, ];
+    $allowed_ip_types = ['flags' => FILTER_FLAG_IPV4];
     if (apply_filters('allow_ipv6', false)) {
         $allowed_ip_types['flags'] |= FILTER_FLAG_IPV6;
     }
 
-    if (!filter_var($ip, FILTER_VALIDATE_IP, $allowed_ip_types)) {
+    if (! filter_var($ip, FILTER_VALIDATE_IP, $allowed_ip_types)) {
         do_action('bump_stats', 'invalid_ip');
+
         return false;
     }
 
-    if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) && !apply_filters('allow_private_ips', false)) {
+    if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) && ! apply_filters('allow_private_ips', false)) {
         do_action('bump_stats', 'private_ip');
+
         return false;
     }
 
     if (isset($parsed['port']) && $parsed['port'] !== $port) {
         do_action('bump_stats', 'invalid_port');
+
         return false;
     }
 
@@ -223,11 +227,11 @@ function fetch_raw_data($url, $timeout = 10, $connect_timeout = 3, $max_redirs =
         CURLOPT_SSL_VERIFYHOST => apply_filters('ssl_verify_host', false),
         CURLOPT_FOLLOWLOCATION => false,
         CURLOPT_DNS_USE_GLOBAL_CACHE => false,
-        CURLOPT_RESOLVE => [$parsed['host'] . ':' . $port . ':' . $ip],
+        CURLOPT_RESOLVE => [$parsed['host'].':'.$port.':'.$ip],
         CURLOPT_HEADERFUNCTION => function ($ch, $header) {
             if (preg_match('/^Content-Length:\s*(\d+)$/i', rtrim($header), $matches)) {
                 if ($matches[1] > $GLOBALS['remote_image_max_size']) {
-                    httpdie('400 Bad Request', 'You can only process images up to ' . $GLOBALS['remote_image_max_size'] . ' bytes.');
+                    httpdie('400 Bad Request', 'You can only process images up to '.$GLOBALS['remote_image_max_size'].' bytes.');
                 }
             }
 
@@ -239,20 +243,21 @@ function fetch_raw_data($url, $timeout = 10, $connect_timeout = 3, $max_redirs =
             $GLOBALS['raw_data_size'] += $bytes;
 
             if ($GLOBALS['raw_data_size'] > $GLOBALS['remote_image_max_size']) {
-                httpdie('400 Bad Request', 'You can only process images up to ' . $GLOBALS['remote_image_max_size'] . ' bytes.');
+                httpdie('400 Bad Request', 'You can only process images up to '.$GLOBALS['remote_image_max_size'].' bytes.');
             }
 
             return $bytes;
         },
     ]);
 
-    if (!curl_exec($ch)) {
+    if (! curl_exec($ch)) {
         do_action('bump_stats', 'invalid_request');
+
         return false;
     }
 
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if (200 == $status) {
+    if ($status == 200) {
         return true;
     }
 
@@ -282,8 +287,8 @@ function fetch_raw_data($url, $timeout = 10, $connect_timeout = 3, $max_redirs =
             httpdie('451 Unavailable For Legal Reasons', 'We cannot complete this request, remote data could not be fetched');
             break;
         default:
-            do_action('bump_stats', 'http_error-400-' . $status);
-            httpdie('400 Bad Request', 'We cannot complete this request, remote server returned an unexpected status code (' . $status . ')');
+            do_action('bump_stats', 'http_error-400-'.$status);
+            httpdie('400 Bad Request', 'We cannot complete this request, remote server returned an unexpected status code ('.$status.')');
     }
 }
 
@@ -291,7 +296,7 @@ function fetch_raw_data($url, $timeout = 10, $connect_timeout = 3, $max_redirs =
 // then we can grab the image internally from Photon's CDN without params, which then
 // either returns the image from the cache or fetches from the site to prime the cache.
 $request_arg_array = array_intersect_key($_GET, $allowed_functions);
-$request_from_origin_cdn = (0 < count($request_arg_array) && false !== $origin_image_cdn_url);
+$request_from_origin_cdn = (count($request_arg_array) > 0 && $origin_image_cdn_url !== false);
 
 $raw_data = '';
 $raw_data_size = 0;
@@ -299,11 +304,11 @@ $raw_data_size = 0;
 $url = sprintf(
     '%s://%s%s',
     array_key_exists('ssl', $_GET) ? 'https' : 'http',
-    substr(parse_url('scheme://host' . $_SERVER['REQUEST_URI'], PHP_URL_PATH), 1), // see https://bugs.php.net/bug.php?id=71112 (and #66813)
-    isset($_GET['q']) ? '?' . $_GET['q'] : ''
+    substr(parse_url('scheme://host'.$_SERVER['REQUEST_URI'], PHP_URL_PATH), 1), // see https://bugs.php.net/bug.php?id=71112 (and #66813)
+    isset($_GET['q']) ? '?'.$_GET['q'] : ''
 );
 
-if (!fetch_raw_data($url, 10, 3, 3, $request_from_origin_cdn)) {
+if (! fetch_raw_data($url, 10, 3, 3, $request_from_origin_cdn)) {
     httpdie('400 Bad Request', 'Sorry, the parameters you provided were not valid');
 }
 
@@ -314,7 +319,7 @@ foreach ($disallowed_file_headers as $file_header) {
 }
 
 $img_proc = new ImageProcessor();
-if (!$img_proc) {
+if (! $img_proc) {
     httpdie('500 Internal Server Error', 'Error 0003. Unable to load the image.');
 }
 
@@ -327,11 +332,11 @@ $img_proc->canonical_url = $url;
 $img_proc->image_max_age = 63115200;
 $img_proc->image_data = $raw_data;
 
-if (!$img_proc->load_image()) {
+if (! $img_proc->load_image()) {
     httpdie('400 Bad Request', 'Error 0004. Unable to load the image.');
 }
 
-if (!in_array($img_proc->image_format, $allowed_types)) {
+if (! in_array($img_proc->image_format, $allowed_types)) {
     httpdie('400 Bad Request', 'Error 0005. The type of image you are trying to process is not allowed.');
 }
 
@@ -356,13 +361,13 @@ foreach ($img_proc->processed as $function_name) {
 
 switch ($original_mime_type) {
     case 'image/png':
-        do_action('bump_stats', 'image_png' . ('image/webp' == $img_proc->mime_type ? '_as_webp' : ''));
+        do_action('bump_stats', 'image_png'.($img_proc->mime_type == 'image/webp' ? '_as_webp' : ''));
         do_action('bump_stats', 'png_bytes_saved', $img_proc->bytes_saved);
         break;
     case 'image/gif':
         do_action('bump_stats', 'image_gif');
         break;
     default:
-        do_action('bump_stats', 'image_jpeg' . ('image/webp' == $img_proc->mime_type ? '_as_webp' : ''));
+        do_action('bump_stats', 'image_jpeg'.($img_proc->mime_type == 'image/webp' ? '_as_webp' : ''));
         do_action('bump_stats', 'jpg_bytes_saved', $img_proc->bytes_saved);
 }
